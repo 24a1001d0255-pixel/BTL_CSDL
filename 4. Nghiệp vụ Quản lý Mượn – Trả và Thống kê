@@ -1,0 +1,246 @@
+--4. Nghiệp vụ Quản lý Mượn – Trả và Thống kê
+USE BTL_CSDL
+GO
+
+DROP VIEW IF EXISTS v_bao_cao_tong_hop
+DROP VIEW IF EXISTS v_danh_sach_muon_tra
+DROP TABLE IF EXISTS bao_cao_thong_ke
+DROP TABLE IF EXISTS phieu_muon
+DROP TABLE IF EXISTS doc_gia
+DROP TABLE IF EXISTS tai_lieu
+GO
+
+
+-- BẢNG: tai_lieu
+-- Mục đích: Lưu toàn bộ thông tin sách trong thư viện
+CREATE TABLE tai_lieu (
+    ma_sach VARCHAR(10) PRIMARY KEY,              
+    ten_sach NVARCHAR(255) NOT NULL,              
+    tac_gia NVARCHAR(100),                        
+    nam_xuat_ban INT CHECK (nam_xuat_ban BETWEEN 1900 AND YEAR(GETDATE())), 
+    nha_xuat_ban NVARCHAR(150),                   
+    the_loai NVARCHAR(100),                       
+    so_luong INT CHECK (so_luong >= 0)            
+)
+GO
+
+
+-- BẢNG: doc_gia
+-- Mục đích: Lưu thông tin độc giả mượn sách
+CREATE TABLE doc_gia (
+    ma_doc_gia VARCHAR(10) PRIMARY KEY,           
+    ho_ten NVARCHAR(100) NOT NULL,                
+    ngay_sinh DATE,                               
+    dia_chi NVARCHAR(255),                        
+    so_dien_thoai VARCHAR(15),                    
+    email NVARCHAR(100)                           
+)
+GO
+
+
+-- BẢNG: phieu_muon
+-- Mục đích: Ghi nhận thông tin mượn – trả từng tài liệu
+CREATE TABLE phieu_muon (
+    so_phieu_muon VARCHAR(10) PRIMARY KEY,        
+    ma_doc_gia VARCHAR(10) NOT NULL,              
+    ma_sach VARCHAR(10) NOT NULL,                 
+    ngay_muon DATE NOT NULL,                      
+    ngay_hen_tra DATE NOT NULL,                   
+    ngay_tra_thuc_te DATE NULL,                   
+    tinh_trang_sach NVARCHAR(100) DEFAULT N'Bình thường', 
+    trang_thai NVARCHAR(50) DEFAULT N'Đang mượn', 
+
+    CONSTRAINT FK_PhieuMuon_DocGia FOREIGN KEY (ma_doc_gia) REFERENCES doc_gia(ma_doc_gia),
+    CONSTRAINT FK_PhieuMuon_TaiLieu FOREIGN KEY (ma_sach) REFERENCES tai_lieu(ma_sach)
+)
+GO
+
+
+-- BẢNG: bao_cao_thong_ke
+-- Mục đích: Lưu các báo cáo định kỳ của thư viện
+CREATE TABLE bao_cao_thong_ke (
+    ma_bao_cao VARCHAR(10) PRIMARY KEY,        
+    thoi_gian_thong_ke DATE NOT NULL,          
+    tong_luot_muon INT DEFAULT 0,              
+    tong_tai_lieu INT DEFAULT 0,               
+    so_doc_gia INT DEFAULT 0,                  
+    so_tai_lieu_bo_sung INT DEFAULT 0          
+)
+GO
+
+
+-- DỮ LIỆU MẪU
+INSERT INTO tai_lieu VALUES
+('S001', N'Giải tích 1', N'Nguyễn Văn Nam', 2021, N'NXB Giáo dục', N'Toán học', 5),
+('S002', N'Lập trình Python', N'Đặng Thùy Dương', 2023, N'NXB Công nghệ', N'Tin học', 3),
+('S003', N'Trí tuệ nhân tạo', N'Phạm Quang Huy', 2024, N'NXB Khoa học', N'Tin học', 2),
+('S004', N'Thiết kế cơ sở dữ liệu', N'Nguyễn Diệu Linh', 2022, N'NXB Đại học Mở', N'Cơ sở dữ liệu', 4)
+GO
+
+INSERT INTO doc_gia VALUES
+('DG001', N'Nguyễn Minh Phúc', '2002-05-10', N'Hà Nội', '0912345678', 'phucnm@gmail.com'),
+('DG002', N'Đỗ Phương Anh', '2003-07-21', N'Hải Phòng', '0987654321', 'anhdp@gmail.com'),
+('DG003', N'Nguyễn Diệu Linh', '2002-09-14', N'Hà Nội', '0909090909', 'linhnd@gmail.com')
+GO
+
+INSERT INTO phieu_muon (so_phieu_muon, ma_doc_gia, ma_sach, ngay_muon, ngay_hen_tra, tinh_trang_sach)
+VALUES
+('PM001', 'DG001', 'S001', '2025-10-01', '2025-10-10', N'Bình thường'),
+('PM002', 'DG002', 'S003', '2025-10-05', '2025-10-15', N'Bìa hơi rách'),
+('PM003', 'DG003', 'S004', '2025-10-07', '2025-10-20', N'Bình thường')
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 1: LẬP PHIẾU MƯỢN
+INSERT INTO phieu_muon (so_phieu_muon, ma_doc_gia, ma_sach, ngay_muon, ngay_hen_tra, tinh_trang_sach)
+VALUES ('PM004', 'DG001', 'S002', '2025-10-25', '2025-11-05', N'Mới')
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 2: CẬP NHẬT TRẢ SÁCH
+UPDATE phieu_muon
+SET ngay_tra_thuc_te = '2025-10-15', trang_thai = N'Đã trả'
+WHERE so_phieu_muon = 'PM001'
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 3: GIA HẠN MƯỢN
+UPDATE phieu_muon
+SET ngay_hen_tra = DATEADD(DAY, 7, ngay_hen_tra)
+WHERE so_phieu_muon = 'PM003'
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 4: TÌM KIẾM PHIẾU MƯỢN
+SELECT pm.*, dg.ho_ten
+FROM phieu_muon pm
+JOIN doc_gia dg ON pm.ma_doc_gia = dg.ma_doc_gia
+WHERE dg.ho_ten LIKE N'%Phương Anh%'
+GO
+
+SELECT * FROM phieu_muon WHERE trang_thai = N'Đang mượn'
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 5: THỐNG KÊ LƯỢT MƯỢN THEO THỜI GIAN
+SELECT 
+    MONTH(ngay_muon) AS thang,
+    YEAR(ngay_muon) AS nam,
+    COUNT(so_phieu_muon) AS luot_muon
+FROM phieu_muon
+GROUP BY YEAR(ngay_muon), MONTH(ngay_muon)
+ORDER BY nam DESC, thang DESC
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 6: LẬP BÁO CÁO THỐNG KÊ ĐỊNH KỲ
+INSERT INTO bao_cao_thong_ke (ma_bao_cao, thoi_gian_thong_ke, tong_luot_muon, tong_tai_lieu, so_doc_gia, so_tai_lieu_bo_sung)
+SELECT 
+    'BC001',
+    GETDATE(),
+    COUNT(pm.so_phieu_muon),
+    (SELECT COUNT(ma_sach) FROM tai_lieu),
+    (SELECT COUNT(ma_doc_gia) FROM doc_gia),
+    3
+FROM phieu_muon pm
+WHERE MONTH(ngay_muon) = MONTH(GETDATE())
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 7: TRUY XUẤT BÁO CÁO THEO THỜI GIAN
+SELECT * 
+FROM bao_cao_thong_ke
+WHERE YEAR(thoi_gian_thong_ke) = 2025
+ORDER BY thoi_gian_thong_ke DESC
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 8: PHÂN LOẠI BÁO CÁO THEO TIÊU CHÍ
+SELECT * FROM bao_cao_thong_ke WHERE tong_luot_muon > 5
+GO
+
+
+-- VIEW: Danh sách phiếu mượn – trả đầy đủ
+CREATE VIEW v_danh_sach_muon_tra AS
+SELECT 
+    pm.so_phieu_muon AS [Số phiếu],
+    dg.ho_ten AS [Tên độc giả],
+    pm.ma_sach AS [Mã sách],
+    pm.ngay_muon AS [Ngày mượn],
+    pm.ngay_hen_tra AS [Hẹn trả],
+    pm.ngay_tra_thuc_te AS [Trả thực tế],
+    pm.trang_thai AS [Trạng thái],
+    pm.tinh_trang_sach AS [Tình trạng sách]
+FROM phieu_muon pm
+JOIN doc_gia dg ON pm.ma_doc_gia = dg.ma_doc_gia
+GO
+
+
+-- VIEW: Báo cáo tổng hợp mượn – trả
+CREATE VIEW v_bao_cao_tong_hop AS
+SELECT 
+    bc.ma_bao_cao AS [Mã báo cáo],
+    bc.thoi_gian_thong_ke AS [Thời gian],
+    bc.tong_luot_muon AS [Tổng lượt mượn],
+    bc.tong_tai_lieu AS [Tổng tài liệu],
+    bc.so_doc_gia AS [Số độc giả],
+    bc.so_tai_lieu_bo_sung AS [Tài liệu bổ sung]
+FROM bao_cao_thong_ke bc
+GO
+
+
+-- TRIGGER: Tự động giảm số lượng sách khi mượn
+CREATE TRIGGER trg_giam_sach_sau_muon
+ON phieu_muon
+AFTER INSERT
+AS
+BEGIN
+    UPDATE tai_lieu
+    SET so_luong = so_luong - 1
+    WHERE ma_sach IN (SELECT ma_sach FROM inserted)
+END
+GO
+
+
+-- TRIGGER: Tự động tăng số lượng sách khi trả
+CREATE TRIGGER trg_tang_sach_sau_tra
+ON phieu_muon
+AFTER UPDATE
+AS
+BEGIN
+    IF UPDATE(ngay_tra_thuc_te)
+    BEGIN
+        UPDATE tai_lieu
+        SET so_luong = so_luong + 1
+        WHERE ma_sach IN (SELECT ma_sach FROM inserted WHERE trang_thai = N'Đã trả')
+    END
+END
+GO
+
+
+-- TRIGGER: Tự động chuyển trạng thái “Đang mượn” → “Quá hạn”
+CREATE TRIGGER trg_cap_nhat_qua_han
+ON phieu_muon
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    UPDATE phieu_muon
+    SET trang_thai = N'Quá hạn'
+    WHERE ngay_hen_tra < GETDATE() AND ngay_tra_thuc_te IS NULL
+END
+GO
+
+
+-- KIỂM TRA VIEW
+SELECT * FROM v_danh_sach_muon_tra
+SELECT * FROM v_bao_cao_tong_hop
+GO
+
+
+-- GHI NHỚ DỄ HỌC:
+-- INSERT → thêm mới
+-- UPDATE → chỉnh sửa
+-- DELETE → xóa
+-- GROUP BY → thống kê, báo cáo
+-- VIEW → hiển thị dữ liệu gọn gàng
+-- TRIGGER → tự động cập nhật dữ liệu khi có thay đổi
