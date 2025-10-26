@@ -1,0 +1,128 @@
+-- Nghiệp vụ Quản lý Tài liệu (Sách) - Nguyễn Diệu Linh 
+
+CREATE DATABASE BTL_CSDL
+GO
+
+USE BTL_CSDL
+GO
+
+
+-- Bảng: tai_lieu
+-- Mục đích: Quản lý tất cả sách, tạp chí, luận văn trong thư viện
+DROP TABLE IF EXISTS tai_lieu
+GO
+
+CREATE TABLE tai_lieu (
+    ma_sach VARCHAR(10) PRIMARY KEY,       -- Mã định danh duy nhất cho từng tài liệu
+    ten_sach NVARCHAR(255) NOT NULL,       -- Tên sách, tạp chí hoặc luận văn
+    tac_gia NVARCHAR(100) NOT NULL,        -- Tên đầy đủ của tác giả (ví dụ: Nguyễn Thúy Hằng)
+    nam_xuat_ban INT CHECK (nam_xuat_ban BETWEEN 1900 AND YEAR(GETDATE())), -- Giới hạn hợp lý
+    nha_xuat_ban NVARCHAR(150),
+    the_loai NVARCHAR(100),
+    so_luong INT CHECK (so_luong >= 0)     -- Không cho phép số lượng âm
+)
+GO
+
+-- Ghi chú: 
+-- Bảng này có thể được mở rộng nếu thư viện có nhiều loại tài liệu khác (ví dụ: CD-ROM, luận án, vv)
+-- nhưng ở đây ta chỉ tập trung vào sách, tạp chí, luận văn như đề bài.
+
+
+-- Thêm dữ liệu mẫu để dễ kiểm thử
+INSERT INTO tai_lieu (ma_sach, ten_sach, tac_gia, nam_xuat_ban, nha_xuat_ban, the_loai, so_luong)
+VALUES
+('S001', N'Cấu trúc dữ liệu và giải thuật', N'Nguyễn Thúy Hằng', 2020, N'NXB Giáo dục Việt Nam', N'Giáo trình', 10),
+('S002', N'Trí tuệ nhân tạo căn bản', N'Lê Minh Phương', 2022, N'NXB Khoa học và Kỹ thuật', N'Công nghệ thông tin', 5),
+('S003', N'Lập trình Python cho người mới bắt đầu', N'Nguyễn Diệu Linh', 2023, N'NXB Trẻ', N'Lập trình', 12),
+('S004', N'Hệ quản trị cơ sở dữ liệu', N'Phạm Văn Hòa', 2019, N'NXB Thống kê', N'Giáo trình', 8),
+('S005', N'Luận văn tốt nghiệp: Phân tích dữ liệu lớn', N'Trần Thị Mai', 2021, N'Đại học Mở Hà Nội', N'Luận văn', 2)
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 1: Thêm sách mới
+-- Lý do: khi thư viện nhập tài liệu mới, cần chèn thêm bản ghi
+-- Dữ liệu được kiểm tra bằng ràng buộc CHECK ở trên
+INSERT INTO tai_lieu (ma_sach, ten_sach, tac_gia, nam_xuat_ban, nha_xuat_ban, the_loai, so_luong)
+VALUES ('S006', N'Cơ sở dữ liệu nâng cao', N'Lưu Thị Hồng Nhung', 2024, N'NXB Thông tin & Truyền thông', N'Công nghệ thông tin', 7)
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 2: Cập nhật thông tin sách
+-- Lý do: dùng khi cần chỉnh sửa dữ liệu do lỗi nhập hoặc bổ sung thông tin
+UPDATE tai_lieu
+SET so_luong = 15, nha_xuat_ban = N'NXB Đại học Quốc gia Hà Nội'
+WHERE ma_sach = 'S003'
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 3: Xóa sách
+-- Lý do: dùng khi sách hỏng, mất, hoặc ngừng lưu hành
+DELETE FROM tai_lieu
+WHERE ma_sach = 'S005'
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 4: Tìm kiếm tài liệu
+-- Lý do: giúp thủ thư hoặc bạn đọc nhanh chóng tra cứu sách
+-- Cách 1: tìm theo tên gần đúng
+SELECT * 
+FROM tai_lieu
+WHERE ten_sach LIKE N'%Python%'
+GO
+
+-- Cách 2: tìm theo thể loại cụ thể
+SELECT * 
+FROM tai_lieu
+WHERE the_loai = N'Giáo trình'
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 5: Thống kê số lượng sách theo thể loại
+-- Dùng hàm GROUP BY để gom nhóm và đếm tổng số sách theo từng thể loại
+SELECT the_loai, SUM(so_luong) AS tong_sach
+FROM tai_lieu
+GROUP BY the_loai
+ORDER BY tong_sach DESC
+GO
+
+
+-- TRƯỜNG HỢP XỬ LÝ 6: Thống kê theo năm xuất bản
+-- Giúp thư viện theo dõi tình hình tài liệu mới – cũ
+SELECT nam_xuat_ban, COUNT(ma_sach) AS so_dau_sach, SUM(so_luong) AS tong_ban
+FROM tai_lieu
+GROUP BY nam_xuat_ban
+ORDER BY nam_xuat_ban DESC
+GO
+
+
+-- VIEW: hiển thị danh sách tài liệu đầy đủ và dễ đọc
+-- Mục đích: dùng để cho người dùng hoặc phần mềm chỉ đọc dữ liệu (tránh thao tác trực tiếp bảng chính)
+CREATE VIEW v_danh_sach_tai_lieu AS
+SELECT 
+    ma_sach AS [Mã sách],
+    ten_sach AS [Tên sách],
+    tac_gia AS [Tác giả],
+    nam_xuat_ban AS [Năm XB],
+    nha_xuat_ban AS [Nhà XB],
+    the_loai AS [Thể loại],
+    so_luong AS [Số lượng],
+    CASE 
+        WHEN so_luong = 0 THEN N'Hết sách'
+        WHEN so_luong < 5 THEN N'Sắp hết'
+        ELSE N'Còn sách'
+    END AS [Tình trạng]
+FROM tai_lieu
+GO
+
+
+-- Kiểm tra view
+SELECT * FROM v_danh_sach_tai_lieu
+GO
+
+
+-- Gợi ý thuật toán sử dụng:
+-- + Khi thêm, sửa, xóa dữ liệu: Dùng lệnh INSERT, UPDATE, DELETE
+-- + Khi tìm kiếm: Dùng LIKE hoặc FULLTEXT SEARCH nếu thư viện lớn
+-- + Khi thống kê: Dùng GROUP BY, SUM, COUNT
+-- + Khi muốn hiển thị dễ nhìn cho người dùng cuối: Tạo VIEW như trên
+-- Tư duy SQL: mỗi thao tác CRUD (Create, Read, Update, Delete) đều ứng với 1 loại nghiệp vụ
